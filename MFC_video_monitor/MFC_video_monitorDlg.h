@@ -3,6 +3,9 @@
 //
 
 #pragma once
+#include "afxcmn.h"
+#include <map>
+#include "afxwin.h"
 
 
 // CMFC_video_monitorDlg ¶Ô»°¿ò
@@ -36,5 +39,36 @@ public:
 
 
 private:
-	ZVideo*  mplayer;
+	ZVideo* mplayer;
+	HWND screen_hwnd = NULL;
+	CSliderCtrl m_progress;
+	bool isShowDuration;
+	bool isFullSceen{false};
+
+	WINDOWPLACEMENT m_saveLocation;
+	CWnd* m_pScreen;
+	CWnd* m_pScreenParant;
+
+	CListBox videoList;
+	CSliderCtrl m_volume;
+	int storeVolume{ 0 };
+	std::map<CString, CStringA> fileMap;
+
+public:
+	afx_msg void OnBnClickedPause();
+	afx_msg void OnBnClickedClose();
+	afx_msg void OnBnClickedFastForw();
+	afx_msg void OnBnClickedFastRew();
+	afx_msg void resetRate();
+	afx_msg void resetTime();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
+	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
+	afx_msg void scanCurrentDir(CString strDir);
+	afx_msg void OnLbnDblclkVideoList();
+	afx_msg void OnBnClickedNoVolumn();
+	afx_msg void initVolumn();
+	afx_msg void OnBnClickedStoreImage();
+	afx_msg void OnBnClickedStoreVideoFrag();
+	afx_msg BOOL PreTranslateMessage(MSG* pMsg);
+	afx_msg void OnBnClickedFullScreen();
 };
