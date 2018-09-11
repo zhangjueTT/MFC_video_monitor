@@ -25,6 +25,10 @@ std::string ZVideo::getName() {
 }
 
 
+std::string ZVideo::getFormat() {
+	return "1";
+}
+
 
 char* ZVideo::getUrl() {
 	return this->url;
@@ -32,18 +36,10 @@ char* ZVideo::getUrl() {
 
 void ZVideo::setUrl(CStringA a_url) {
 
-	USES_CONVERSION;
-	CStringW w_url;
-	w_url.Format(L"%s", A2W(a_url));
-	
-	char* url = unicode2UTF8(w_url);
-
+	char* url = unicode2UTF8(a_url);
 	this->url = url;
 }
 
-std::string ZVideo::getFormat() {
-	return "1";
-}
 
 bool ZVideo::init(HWND screen_hwnd) {
 	inst = libvlc_new(0, NULL);						/* Create and initialize a libvlc instance. */
@@ -56,17 +52,17 @@ bool ZVideo::init(HWND screen_hwnd) {
 	mp = libvlc_media_player_new_from_media(m);		/* Create a media player playing environement */
 	if (mp == nullptr) return false;
 
-	// 获取电影长度
-	length = (long)libvlc_media_player_get_length(mp);
-	//name = libvlc_media_player_get_title(mp);
-
 	// 设置播放窗口
 	libvlc_media_player_set_hwnd(mp, screen_hwnd);
 }
 
 
-char* ZVideo::unicode2UTF8(CStringW& unicodeString)
+char* ZVideo::unicode2UTF8(CStringA& a_url)
 {
+	USES_CONVERSION;
+	CStringW unicodeString;
+	unicodeString.Format(L"%s", A2W(a_url));
+
 	int stringLength = ::WideCharToMultiByte(CP_UTF8, NULL, unicodeString, wcslen(unicodeString), NULL, 0, NULL, NULL);
 	char* UTF8String = new char[stringLength + 1];
 	::WideCharToMultiByte(CP_UTF8, NULL, unicodeString, wcslen(unicodeString), UTF8String, stringLength, NULL, NULL);
@@ -81,7 +77,12 @@ char* ZVideo::unicode2UTF8(CStringW& unicodeString)
 bool ZVideo::begin() {
 	// 播放文件
 	if (mp == nullptr) return false;
-	libvlc_media_player_play(mp);      /* play the media_player */
+
+	// IDLE/CLOSE=0, OPENING=1, PLAYING=3, PAUSED=4, STOPPING=5, ENDED=6, ERROR=7
+	if (libvlc_media_player_get_state(mp)!=libvlc_Playing) {
+		libvlc_media_player_play(mp);      /* play the media_player */
+		rate = 1.0;
+	}
 	return true;
 }
 
@@ -94,12 +95,17 @@ bool ZVideo::pause() {
 bool ZVideo::close() {
 	if (mp == nullptr) return false;
 	libvlc_media_player_stop(mp);
+
+	// 状态转换
+	delete url;
+	url = nullptr;
+	rate = 1.0;
 	return true;
 }
 bool ZVideo::fastForword() {
 	if (mp == nullptr) return false;
 
-	if (rate < 2) {
+	if (rate < 2&& libvlc_media_player_get_state(mp) == libvlc_Playing) {
 		rate = rate + 0.25;
 	}
 
@@ -109,7 +115,7 @@ bool ZVideo::fastForword() {
 bool ZVideo::fastRewind() {
 	if (mp == nullptr) return false;
 
-	if (rate > 0.5) {
+	if (rate > 0.5&&libvlc_media_player_get_state(mp) == libvlc_Playing) {
 		rate = rate - 0.25;
 	}
 	libvlc_media_player_set_rate(mp, rate);
@@ -127,24 +133,63 @@ bool ZVideo::storeVideoFragment() {
 	return true;
 }
 
-bool ZVideo::setVolumn() {
+int ZVideo::getVolumn() {
+	if (mp == nullptr) return false;	
+	return libvlc_audio_get_volume(mp);
+}
+
+
+bool ZVideo::setVolumn(int volume) {
 	if (mp == nullptr) return false;
-	libvlc_audio_set_volume_cb();
+	libvlc_audio_set_volume(mp, volume);
+	return true;
+}
+
+void ZVideo::setProgress(double posf) {
+	if (mp == nullptr) return;
+	libvlc_media_player_set_position(mp, posf);
+}
+
+bool ZVideo::snapshot(CStringA& a_url) {
+	if (mp == nullptr) return false;
+
+	char* filepath = unicode2UTF8(a_url);
+	int i = libvlc_video_take_snapshot(mp, 0, filepath, 0, 0);
 
 	return true;
 }
 
-bool ZVideo::setProgress() {
+
+bool ZVideo::fullscreen(bool isFull) {
 	if (mp == nullptr) return false;
 
-	/*Get the current movie time (in ms).*/
-	libvlc_media_player_get_time(mp);
-	libvlc_media_player_get_position(mp);
-
-	libvlc_media_player_set_time(mp, 1);
-	libvlc_media_player_set_position(mp, 0.1);
+	libvlc_set_fullscreen(mp, isFull);
 	return true;
 }
+
+// 参数处理方法
+float ZVideo::getRate() {
+	return this->rate;
+}
+
+// IDLE/CLOSE=0, OPENING=1, PLAYING=3, PAUSED=4, STOPPING=5, ENDED=6, ERROR=7
+int ZVideo::getPlayerState() {
+	if (mp == nullptr) return 0;
+	return libvlc_media_player_get_state(mp);
+}
+
+int ZVideo::getDuration() {
+	if (mp == nullptr) return 0;
+	return libvlc_media_player_get_length(mp) / 1000;
+}
+
+int ZVideo::getCurrent() {
+	if (mp == nullptr) return 0;
+	return libvlc_media_player_get_time(mp) / 1000;
+}
+
+
+
 
 
 // 构造与析构
