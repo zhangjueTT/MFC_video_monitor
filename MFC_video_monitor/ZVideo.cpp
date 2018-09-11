@@ -25,6 +25,10 @@ std::string ZVideo::getName() {
 }
 
 
+std::string ZVideo::getFormat() {
+	return "1";
+}
+
 
 char* ZVideo::getUrl() {
 	return this->url;
@@ -41,9 +45,6 @@ void ZVideo::setUrl(CStringA a_url) {
 	this->url = url;
 }
 
-std::string ZVideo::getFormat() {
-	return "1";
-}
 
 bool ZVideo::init(HWND screen_hwnd) {
 	inst = libvlc_new(0, NULL);						/* Create and initialize a libvlc instance. */
@@ -55,10 +56,6 @@ bool ZVideo::init(HWND screen_hwnd) {
 
 	mp = libvlc_media_player_new_from_media(m);		/* Create a media player playing environement */
 	if (mp == nullptr) return false;
-
-	// 获取电影长度
-	length = (long)libvlc_media_player_get_length(mp);
-	//name = libvlc_media_player_get_title(mp);
 
 	// 设置播放窗口
 	libvlc_media_player_set_hwnd(mp, screen_hwnd);
@@ -81,7 +78,12 @@ char* ZVideo::unicode2UTF8(CStringW& unicodeString)
 bool ZVideo::begin() {
 	// 播放文件
 	if (mp == nullptr) return false;
-	libvlc_media_player_play(mp);      /* play the media_player */
+
+	// IDLE/CLOSE=0, OPENING=1, PLAYING=3, PAUSED=4, STOPPING=5, ENDED=6, ERROR=7
+	if (libvlc_media_player_get_state(mp)!=libvlc_Playing) {
+		libvlc_media_player_play(mp);      /* play the media_player */
+		rate = 1.0;
+	}
 	return true;
 }
 
@@ -94,12 +96,17 @@ bool ZVideo::pause() {
 bool ZVideo::close() {
 	if (mp == nullptr) return false;
 	libvlc_media_player_stop(mp);
+
+	// 状态转换
+	delete url;
+	url = nullptr;
+	rate = 1.0;
 	return true;
 }
 bool ZVideo::fastForword() {
 	if (mp == nullptr) return false;
 
-	if (rate < 2) {
+	if (rate < 2&& libvlc_media_player_get_state(mp) == libvlc_Playing) {
 		rate = rate + 0.25;
 	}
 
@@ -109,7 +116,7 @@ bool ZVideo::fastForword() {
 bool ZVideo::fastRewind() {
 	if (mp == nullptr) return false;
 
-	if (rate > 0.5) {
+	if (rate > 0.5&&libvlc_media_player_get_state(mp) == libvlc_Playing) {
 		rate = rate - 0.25;
 	}
 	libvlc_media_player_set_rate(mp, rate);
@@ -134,17 +141,34 @@ bool ZVideo::setVolumn() {
 	return true;
 }
 
-bool ZVideo::setProgress() {
-	if (mp == nullptr) return false;
-
-	/*Get the current movie time (in ms).*/
-	libvlc_media_player_get_time(mp);
-	libvlc_media_player_get_position(mp);
-
-	libvlc_media_player_set_time(mp, 1);
-	libvlc_media_player_set_position(mp, 0.1);
-	return true;
+void ZVideo::setScroll(float posf) {
+	if (mp == nullptr) return;
+	libvlc_media_player_set_position(mp, posf);
 }
+
+// 参数处理方法
+float ZVideo::getRate() {
+	return this->rate;
+}
+
+// IDLE/CLOSE=0, OPENING=1, PLAYING=3, PAUSED=4, STOPPING=5, ENDED=6, ERROR=7
+int ZVideo::getPlayerState() {
+	if (mp == nullptr) return 0;
+	return libvlc_media_player_get_state(mp);
+}
+
+int ZVideo::getDuration() {
+	if (mp == nullptr) return 0;
+	return libvlc_media_player_get_length(mp) / 1000;
+}
+
+int ZVideo::getCurrent() {
+	if (mp == nullptr) return 0;
+	return libvlc_media_player_get_time(mp) / 1000;
+}
+
+
+
 
 
 // 构造与析构

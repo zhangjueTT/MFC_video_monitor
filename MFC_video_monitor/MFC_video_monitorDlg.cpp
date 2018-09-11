@@ -58,6 +58,7 @@ CMFC_video_monitorDlg::CMFC_video_monitorDlg(CWnd* pParent /*=NULL*/)
 void CMFC_video_monitorDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
+	DDX_Control(pDX, IDC_PROGRESS_BAR, m_progress);
 }
 
 BEGIN_MESSAGE_MAP(CMFC_video_monitorDlg, CDialogEx)
@@ -65,6 +66,12 @@ BEGIN_MESSAGE_MAP(CMFC_video_monitorDlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
 	ON_BN_CLICKED(IDC_BEGIN, &CMFC_video_monitorDlg::OnBnClickedBegin)
+	ON_BN_CLICKED(IDC_PAUSE, &CMFC_video_monitorDlg::OnBnClickedPause)
+	ON_BN_CLICKED(IDC_CLOSE, &CMFC_video_monitorDlg::OnBnClickedClose)
+	ON_BN_CLICKED(IDC_FAST_FORW, &CMFC_video_monitorDlg::OnBnClickedFastForw)
+	ON_BN_CLICKED(IDC_FAST_REW, &CMFC_video_monitorDlg::OnBnClickedFastRew)
+	ON_WM_TIMER()
+	ON_WM_HSCROLL()
 END_MESSAGE_MAP()
 
 
@@ -101,6 +108,9 @@ BOOL CMFC_video_monitorDlg::OnInitDialog()
 
 	// TODO: 在此添加额外的初始化代码
 	mplayer = &ZVideo::getInstance();
+	screen_hwnd = this->GetDlgItem(IDC_SCREEN)->m_hWnd;
+	m_progress.SetRange(0, 1000);
+
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -153,13 +163,151 @@ HCURSOR CMFC_video_monitorDlg::OnQueryDragIcon()
 
 void CMFC_video_monitorDlg::OnBnClickedBegin()
 {
-	// TODO: 在此添加控件通知处理程序代码
-	HWND screen_hwnd = NULL;
-	screen_hwnd = this->GetDlgItem(IDC_SCREEN)->m_hWnd;
+	if (mplayer->getPlayerState() == libvlc_Playing) {
+		OnBnClickedClose();
+	}
+	CString filter;
+	filter = "视频文件(*.avi; *mp4; *mkv; *flv; *rmvb; *wmv; *mpeg; *mov)|*.avi; *mp4; *mkv; *flv; *rmvb; *wmv; *mpeg; *mov||";
+	CFileDialog dlg(TRUE, NULL, NULL, OFN_HIDEREADONLY, filter);
+	if (!dlg.DoModal() == IDOK)
+	{
+		return ;
+	}
 
-	mplayer->setUrl(R"(G:\迅雷下载\11.mp4)");
+	CStringA videoUrl;
+	videoUrl = dlg.GetPathName();
+
+	mplayer->setUrl(videoUrl);
+
 	mplayer->init(screen_hwnd);
 	mplayer->begin();
-
+	isShowDuration = true;
+	// 设置定时器
+	SetTimer(1, 1000, NULL);
 }
 
+
+
+void CMFC_video_monitorDlg::OnBnClickedPause()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	// 确定总时长
+	CString str;
+	GetDlgItemText(IDC_PAUSE, str);
+
+	if (mplayer->getPlayerState()!=libvlc_Playing && str=="暂停") return;
+
+	if (str == "开始") {
+		str = "暂停";
+	}
+	else {
+		str = "开始";
+	}
+	SetDlgItemText(IDC_PAUSE, str);
+
+	mplayer->pause();
+}
+
+
+void CMFC_video_monitorDlg::OnBnClickedClose()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	mplayer->close();
+	// 关闭定时器
+	KillTimer(1);
+	resetRate();
+	resetTime();
+}
+
+
+void CMFC_video_monitorDlg::OnBnClickedFastForw()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	mplayer->fastForword();
+	resetRate();
+}
+
+
+
+void CMFC_video_monitorDlg::OnBnClickedFastRew()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	mplayer->fastRewind();
+	resetRate();
+}
+
+void CMFC_video_monitorDlg::OnTimer(UINT_PTR nIDEvent)
+{
+	if (nIDEvent==1) {
+
+		CString curtimeStr, durationStr;
+		int curtime;
+		int duration;
+
+		int thh, tmm, tss;
+		curtime = mplayer->getCurrent();
+		duration = mplayer->getDuration();
+
+		if (curtime != 0) {
+			//change to second
+			thh = curtime / 3600;
+			tmm = (curtime % 3600) / 60;
+			tss = (curtime % 60);
+			curtimeStr.Format(_T("%02d:%02d:%02d"), thh, tmm, tss);
+
+			SetDlgItemText(IDC_CURRENT_TIME, curtimeStr);
+		}
+
+		// 如果太快获取getDuration会失败，故放到定时器中执行一次
+		if (isShowDuration) {
+			if (duration != 0) {
+				thh = duration / 3600;
+				tmm = (duration % 3600) / 60;
+				tss = (duration % 60);
+				durationStr.Format(_T("%02d:%02d:%02d"), thh, tmm, tss);
+				SetDlgItemText(IDC_DURATION_TIME, durationStr);
+			}		
+			isShowDuration = false;
+		}
+		int progress = curtime * 1000 / duration ;
+		m_progress.SetPos(progress);
+	}
+
+	// 播放结束则关闭
+	if (mplayer->getPlayerState() == libvlc_Ended)
+		OnBnClickedClose();
+
+	CDialogEx::OnTimer(nIDEvent);
+}
+
+
+void CMFC_video_monitorDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
+{
+	if (mplayer->getPlayerState() != libvlc_Playing) return;
+
+	if (pScrollBar->GetSafeHwnd() == m_progress.GetSafeHwnd()) {
+		float posf = 0.0;
+		if (nSBCode == SB_THUMBPOSITION) {
+			posf = (float)nPos / 1000.0;
+			mplayer->setScroll(posf);
+		}
+	}
+	CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
+}
+
+
+void CMFC_video_monitorDlg::resetTime() {
+	CString timeStr;
+	timeStr = "00:00:00";
+
+	SetDlgItemText(IDC_CURRENT_TIME, timeStr);
+	SetDlgItemText(IDC_DURATION_TIME, timeStr);
+}
+
+
+void CMFC_video_monitorDlg::resetRate() {
+	CString strRate;
+	strRate.Format(_T("%1.2f"), mplayer->getRate());
+	strRate = (CString)"播放速度:" + strRate + (CString)"倍";
+	SetDlgItemText(IDC_RATE, strRate);
+}

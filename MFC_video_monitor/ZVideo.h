@@ -13,8 +13,7 @@ public:
 	bool  ZVideo::init(HWND screen_hwnd);
 	static ZVideo& getInstance();
 	std::string getName();
-	char* getUrl();
-	void setUrl(CStringA a_url);
+
 	std::string getFormat();
 	virtual ~ZVideo();
 
@@ -30,7 +29,17 @@ public:
 	bool storeImage();
 	bool storeVideoFragment();
 	bool setVolumn();
-	bool setProgress();
+	void setScroll(float posf);
+
+
+	int getPlayerState();
+	float getRate();
+	int getDuration();
+	int getCurrent();
+
+	char* getUrl();
+	void setUrl(CStringA a_url);
+
 
 private:
 	ZVideo();
@@ -48,10 +57,10 @@ private:
 	libvlc_media_player_t *mp;
 	libvlc_media_t *m;
 
+
 	// 相关参数
-	char* url;
+	char* url{nullptr};
 	float rate{1};
-	long length{ 0 };
 };
 
 
