@@ -461,48 +461,53 @@ void CMFC_video_monitorDlg::OnBnClickedStoreImage()
 BOOL CMFC_video_monitorDlg::PreTranslateMessage(MSG* pMsg)
 {
 	CString volume;
-		//判断是否按下键盘Enter键
-	switch (pMsg->wParam) {
-		// 进度控制
-	case VK_RIGHT:
-		mplayer->setProgress( (mplayer->getCurrent() + 5.0) / (double)mplayer->getDuration() );
-		break;
-	case VK_LEFT:
-		mplayer->setProgress( (mplayer->getCurrent() + 5.0) / (double)mplayer->getDuration() );
-		break;
-		// 声音控制
-	case VK_UP:
-		storeVolume = mplayer->getVolumn() + 5;
-		if (storeVolume > 150) storeVolume = 150;
-		mplayer->setVolumn(storeVolume);
-		m_volume.SetPos(storeVolume);
-		volume.Format(_T("%d"), storeVolume);
-		SetDlgItemText(IDC_STATIC_VOLUME, volume);
-		break;
-	case VK_DOWN:
-		storeVolume = mplayer->getVolumn() - 5;
-		if (storeVolume < 0) storeVolume = 0;
-		mplayer->setVolumn(storeVolume);
-		m_volume.SetPos(storeVolume);
-		volume.Format(_T("%d"), storeVolume);
-		SetDlgItemText(IDC_STATIC_VOLUME, volume);
-		break;
-		// 开始与暂停
-	case VK_SPACE:
-		OnBnClickedPause();
-		break;
-		// 全屏时候恢复不全屏
-	case VK_SHIFT:
-		if (isFullSceen) {
-			m_pScreenParant->ShowWindow(SW_SHOW);
-			m_pScreen->SetParent(m_pScreenParant);
-			m_pScreen->SetWindowPlacement(&m_saveLocation);//还原
 
-			isFullSceen = false;
-		}
-		break;
+	// 只响应鼠标按下消息，避免多次响应
+	if (pMsg->message == WM_KEYDOWN) {
+		//判断是否按下键盘虚拟码
+		switch (pMsg->wParam) {
+			// 进度控制
+		case VK_RIGHT:
+			mplayer->setProgress((mplayer->getCurrent() + 5.0) / (double)mplayer->getDuration());
+			break;
+		case VK_LEFT:
+			mplayer->setProgress((mplayer->getCurrent() - 5.0) / (double)mplayer->getDuration());
+			break;
+			// 声音控制
+		case VK_UP:
+			storeVolume = mplayer->getVolumn() + 5;
+			if (storeVolume > 150) storeVolume = 150;
+			mplayer->setVolumn(storeVolume);
+			m_volume.SetPos(storeVolume);
+			volume.Format(_T("%d"), storeVolume);
+			SetDlgItemText(IDC_STATIC_VOLUME, volume);
+			break;
+		case VK_DOWN:
+			storeVolume = mplayer->getVolumn() - 5;
+			if (storeVolume < 0) storeVolume = 0;
+			mplayer->setVolumn(storeVolume);
+			m_volume.SetPos(storeVolume);
+			volume.Format(_T("%d"), storeVolume);
+			SetDlgItemText(IDC_STATIC_VOLUME, volume);
+			break;
+			// 开始与暂停
+		case VK_SPACE:
+			OnBnClickedPause();
+			break;
+			// 全屏时候恢复不全屏
+		case VK_SHIFT:
+			if (isFullSceen) {
+				m_pScreenParant->ShowWindow(SW_SHOW);
+				m_pScreen->SetParent(m_pScreenParant);
+				m_pScreen->SetWindowPlacement(&m_saveLocation);//还原
+
+				isFullSceen = false;
+			}
+			break;
+		}	
 	}
 
+	if (pMsg->wParam == VK_SPACE)  return true;	
 	return CDialog::PreTranslateMessage(pMsg);
 }
 
