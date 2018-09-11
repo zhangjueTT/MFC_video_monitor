@@ -60,6 +60,7 @@ void CMFC_video_monitorDlg::DoDataExchange(CDataExchange* pDX)
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_PROGRESS_BAR, m_progress);
 	DDX_Control(pDX, IDC_VIDEO_LIST, videoList);
+	DDX_Control(pDX, IDC_VOLUMN_BAR, m_volume);
 }
 
 BEGIN_MESSAGE_MAP(CMFC_video_monitorDlg, CDialogEx)
@@ -74,6 +75,7 @@ BEGIN_MESSAGE_MAP(CMFC_video_monitorDlg, CDialogEx)
 	ON_WM_TIMER()
 	ON_WM_HSCROLL()
 	ON_LBN_DBLCLK(IDC_VIDEO_LIST, &CMFC_video_monitorDlg::OnLbnDblclkVideoList)
+	ON_BN_CLICKED(IDC_NO_VOLUMN, &CMFC_video_monitorDlg::OnBnClickedNoVolumn)
 END_MESSAGE_MAP()
 
 
@@ -112,6 +114,8 @@ BOOL CMFC_video_monitorDlg::OnInitDialog()
 	mplayer = &ZVideo::getInstance();
 	screen_hwnd = this->GetDlgItem(IDC_SCREEN)->m_hWnd;
 	m_progress.SetRange(0, 1000);
+	m_volume.SetRange(0, 100);
+
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
@@ -171,30 +175,34 @@ void CMFC_video_monitorDlg::OnBnClickedBegin()
 	CString filter;
 	filter = "视频文件(*.avi; *mp4; *mkv; *flv; *rmvb; *wmv; *mpeg; *mov)|*.avi; *mp4; *mkv; *flv; *rmvb; *wmv; *mpeg; *mov||";
 	CFileDialog dlg(TRUE, NULL, NULL, OFN_HIDEREADONLY, filter);
-	if (!dlg.DoModal() == IDOK)
+	if (dlg.DoModal() == IDOK)
 	{
-		return ;
+
+		CStringA videoUrl;
+		videoUrl = dlg.GetPathName();
+
+		fileMap.clear();
+		// 遍历当前文件夹
+		scanCurrentDir((CString)videoUrl);
+
+		int i = 0;
+		for (auto item : fileMap) {
+			videoList.InsertString(i++, item.first);
+		}
+
+		mplayer->setUrl(videoUrl);
+
+		mplayer->init(screen_hwnd);
+		mplayer->begin();
+
+		// C初始化音量
+		initVolumn();
+
+		// 设置定时器
+		isShowDuration = true;
+		SetTimer(1, 1000, NULL);
 	}
-	CStringA videoUrl;
-	videoUrl = dlg.GetPathName();
 
-	fileMap.clear();
-	// 遍历当前文件夹
-	scanCurrentDir((CString)videoUrl);
-
-	int i = 0;
-	for (auto item : fileMap) {
-		videoList.InsertString( i++,item.first);
-	}
-
-	mplayer->setUrl(videoUrl);
-
-	mplayer->init(screen_hwnd);
-	mplayer->begin();
-
-	// 设置定时器
-	isShowDuration = true;
-	SetTimer(1, 1000, NULL);
 }
 
 
@@ -295,15 +303,26 @@ void CMFC_video_monitorDlg::OnTimer(UINT_PTR nIDEvent)
 
 void CMFC_video_monitorDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
-	if (mplayer->getPlayerState() != libvlc_Playing) return;
+	if (mplayer->getPlayerState() == libvlc_NothingSpecial) return;
 
 	if (pScrollBar->GetSafeHwnd() == m_progress.GetSafeHwnd()) {
 		float posf = 0.0;
 		if (nSBCode == SB_THUMBPOSITION) {
 			posf = (float)nPos / 1000.0;
-			mplayer->setScroll(posf);
+			mplayer->setProgress(posf);
+		}
+
+	}
+
+	if (pScrollBar->GetSafeHwnd() == m_volume.GetSafeHwnd()) {
+		if (nSBCode == SB_THUMBPOSITION) {
+			mplayer->setVolumn(nPos);
+			CString volume;
+			volume.Format(_T("%d"), nPos);
+			SetDlgItemText(IDC_STATIC_VOLUME, volume);
 		}
 	}
+
 	CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
 }
 
@@ -324,6 +343,15 @@ void CMFC_video_monitorDlg::resetRate() {
 	SetDlgItemText(IDC_RATE, strRate);
 }
 
+
+void CMFC_video_monitorDlg::initVolumn()
+{
+	CString volume;
+	int vnum = mplayer->getVolumn();
+	m_volume.SetPos(vnum);
+	volume.Format(_T("%d"), vnum);
+	SetDlgItemText(IDC_STATIC_VOLUME, volume);
+}
 
 // 遍历当前文件夹
 void CMFC_video_monitorDlg::scanCurrentDir(CString filter)
@@ -375,8 +403,34 @@ void CMFC_video_monitorDlg::OnLbnDblclkVideoList()
 	mplayer->init(screen_hwnd);
 	mplayer->begin();
 
+	// C初始化音量
+	initVolumn();
+
 	// 设置定时器
 	isShowDuration = true;
 	SetTimer(1, 1000, NULL);
 
 }
+
+
+// 静音
+void CMFC_video_monitorDlg::OnBnClickedNoVolumn()
+{
+	CString str;
+	GetDlgItemText(IDC_NO_VOLUME, str);
+
+	if (mplayer->getPlayerState() != libvlc_Playing && str == "静音") return;
+
+	if (str == "静音") {
+		storeVolume = mplayer->getVolumn();
+		mplayer->setVolumn(0);
+		str = "取消静音";
+	}
+	else {
+		mplayer->setVolumn(storeVolume);
+		str = "静音";
+	}
+
+	SetDlgItemText(IDC_NO_VOLUME, str);
+}
+

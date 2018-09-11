@@ -134,14 +134,19 @@ bool ZVideo::storeVideoFragment() {
 	return true;
 }
 
-bool ZVideo::setVolumn() {
-	if (mp == nullptr) return false;
-	libvlc_audio_set_volume_cb();
+int ZVideo::getVolumn() {
+	if (mp == nullptr) return false;	
+	return libvlc_audio_get_volume(mp);
+}
 
+
+bool ZVideo::setVolumn(int volume) {
+	if (mp == nullptr) return false;
+	libvlc_audio_set_volume(mp, volume);
 	return true;
 }
 
-void ZVideo::setScroll(float posf) {
+void ZVideo::setProgress(float posf) {
 	if (mp == nullptr) return;
 	libvlc_media_player_set_position(mp, posf);
 }

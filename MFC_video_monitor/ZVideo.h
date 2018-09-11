@@ -28,8 +28,9 @@ public:
 	bool fastRewind();
 	bool storeImage();
 	bool storeVideoFragment();
-	bool setVolumn();
-	void setScroll(float posf);
+	int getVolumn();
+	bool setVolumn(int volume);
+	void setProgress(float posf);
 
 
 	int getPlayerState();

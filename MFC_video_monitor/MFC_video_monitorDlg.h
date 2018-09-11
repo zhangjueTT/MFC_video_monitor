@@ -44,7 +44,8 @@ private:
 	CSliderCtrl m_progress;
 	bool isShowDuration;
 	CListBox videoList;
-
+	CSliderCtrl m_volume;
+	int storeVolume{ 0 };
 	std::map<CString, CStringA> fileMap;
 
 public:
@@ -58,4 +59,7 @@ public:
 	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
 	afx_msg void scanCurrentDir(CString strDir);
 	afx_msg void OnLbnDblclkVideoList();
+	afx_msg void OnBnClickedNoVolumn();
+	afx_msg void initVolumn();
+
 };
