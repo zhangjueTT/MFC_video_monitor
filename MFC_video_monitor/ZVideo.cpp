@@ -36,12 +36,7 @@ char* ZVideo::getUrl() {
 
 void ZVideo::setUrl(CStringA a_url) {
 
-	USES_CONVERSION;
-	CStringW w_url;
-	w_url.Format(L"%s", A2W(a_url));
-	
-	char* url = unicode2UTF8(w_url);
-
+	char* url = unicode2UTF8(a_url);
 	this->url = url;
 }
 
@@ -62,8 +57,12 @@ bool ZVideo::init(HWND screen_hwnd) {
 }
 
 
-char* ZVideo::unicode2UTF8(CStringW& unicodeString)
+char* ZVideo::unicode2UTF8(CStringA& a_url)
 {
+	USES_CONVERSION;
+	CStringW unicodeString;
+	unicodeString.Format(L"%s", A2W(a_url));
+
 	int stringLength = ::WideCharToMultiByte(CP_UTF8, NULL, unicodeString, wcslen(unicodeString), NULL, 0, NULL, NULL);
 	char* UTF8String = new char[stringLength + 1];
 	::WideCharToMultiByte(CP_UTF8, NULL, unicodeString, wcslen(unicodeString), UTF8String, stringLength, NULL, NULL);
@@ -146,9 +145,26 @@ bool ZVideo::setVolumn(int volume) {
 	return true;
 }
 
-void ZVideo::setProgress(float posf) {
+void ZVideo::setProgress(double posf) {
 	if (mp == nullptr) return;
 	libvlc_media_player_set_position(mp, posf);
+}
+
+bool ZVideo::snapshot(CStringA& a_url) {
+	if (mp == nullptr) return false;
+
+	char* filepath = unicode2UTF8(a_url);
+	int i = libvlc_video_take_snapshot(mp, 0, filepath, 0, 0);
+
+	return true;
+}
+
+
+bool ZVideo::fullscreen(bool isFull) {
+	if (mp == nullptr) return false;
+
+	libvlc_set_fullscreen(mp, isFull);
+	return true;
 }
 
 // 参数处理方法

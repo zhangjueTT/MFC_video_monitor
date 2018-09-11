@@ -43,6 +43,12 @@ private:
 	HWND screen_hwnd = NULL;
 	CSliderCtrl m_progress;
 	bool isShowDuration;
+	bool isFullSceen{false};
+
+	WINDOWPLACEMENT m_saveLocation;
+	CWnd* m_pScreen;
+	CWnd* m_pScreenParant;
+
 	CListBox videoList;
 	CSliderCtrl m_volume;
 	int storeVolume{ 0 };
@@ -61,5 +67,8 @@ public:
 	afx_msg void OnLbnDblclkVideoList();
 	afx_msg void OnBnClickedNoVolumn();
 	afx_msg void initVolumn();
-
+	afx_msg void OnBnClickedStoreImage();
+	afx_msg void OnBnClickedStoreVideoFrag();
+	afx_msg BOOL PreTranslateMessage(MSG* pMsg);
+	afx_msg void OnBnClickedFullScreen();
 };

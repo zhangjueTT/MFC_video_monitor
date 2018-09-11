@@ -18,7 +18,7 @@ public:
 	virtual ~ZVideo();
 
 	// VLC中文字符转码问题
-	char* ZVideo::unicode2UTF8(CStringW& unicodeString);
+	char* ZVideo::unicode2UTF8(CStringA& a_url);
 
 	/* 功能方法 */
 	bool begin();
@@ -30,9 +30,10 @@ public:
 	bool storeVideoFragment();
 	int getVolumn();
 	bool setVolumn(int volume);
-	void setProgress(float posf);
-
-
+	void setProgress(double posf);
+	bool snapshot(CStringA& a_url);
+	bool fullscreen(bool isFull);
+	
 	int getPlayerState();
 	float getRate();
 	int getDuration();

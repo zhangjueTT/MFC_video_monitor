@@ -76,6 +76,9 @@ BEGIN_MESSAGE_MAP(CMFC_video_monitorDlg, CDialogEx)
 	ON_WM_HSCROLL()
 	ON_LBN_DBLCLK(IDC_VIDEO_LIST, &CMFC_video_monitorDlg::OnLbnDblclkVideoList)
 	ON_BN_CLICKED(IDC_NO_VOLUMN, &CMFC_video_monitorDlg::OnBnClickedNoVolumn)
+	ON_BN_CLICKED(IDC_STORE_IMAGE, &CMFC_video_monitorDlg::OnBnClickedStoreImage)
+	ON_BN_CLICKED(IDC_STORE_VIDEO_FRAG, &CMFC_video_monitorDlg::OnBnClickedStoreVideoFrag)
+	ON_BN_CLICKED(IDC_FULL_SCREEN, &CMFC_video_monitorDlg::OnBnClickedFullScreen)
 END_MESSAGE_MAP()
 
 
@@ -113,6 +116,7 @@ BOOL CMFC_video_monitorDlg::OnInitDialog()
 	// TODO: 在此添加额外的初始化代码
 	mplayer = &ZVideo::getInstance();
 	screen_hwnd = this->GetDlgItem(IDC_SCREEN)->m_hWnd;
+	m_pScreen = this->GetDlgItem(IDC_SCREEN);
 	m_progress.SetRange(0, 1000);
 	m_volume.SetRange(0, 100);
 
@@ -222,9 +226,9 @@ void CMFC_video_monitorDlg::OnBnClickedPause()
 	else {
 		str = "开始";
 	}
-	SetDlgItemText(IDC_PAUSE, str);
 
 	mplayer->pause();
+	SetDlgItemText(IDC_PAUSE, str);
 }
 
 
@@ -306,9 +310,9 @@ void CMFC_video_monitorDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScro
 	if (mplayer->getPlayerState() == libvlc_NothingSpecial) return;
 
 	if (pScrollBar->GetSafeHwnd() == m_progress.GetSafeHwnd()) {
-		float posf = 0.0;
+		double posf = 0.0;
 		if (nSBCode == SB_THUMBPOSITION) {
-			posf = (float)nPos / 1000.0;
+			posf = (double)nPos / 1000.0;
 			mplayer->setProgress(posf);
 		}
 
@@ -434,3 +438,106 @@ void CMFC_video_monitorDlg::OnBnClickedNoVolumn()
 	SetDlgItemText(IDC_NO_VOLUME, str);
 }
 
+
+
+void CMFC_video_monitorDlg::OnBnClickedStoreImage()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	if (mplayer->getPlayerState() == libvlc_NothingSpecial) {
+		return ;
+	}
+	CString filter;
+	filter = "截图(*.jpg; *.bmp; *.png)|*.jpg; *.bmp; *.png||";
+	CFileDialog dlg(FALSE, _T("png"), _T("no_name"), OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT, filter);
+	if (dlg.DoModal() == IDOK)
+	{
+		CStringA filePath;
+		filePath = dlg.GetPathName();
+		mplayer->snapshot(filePath);
+	}
+
+}
+
+BOOL CMFC_video_monitorDlg::PreTranslateMessage(MSG* pMsg)
+{
+	CString volume;
+		//判断是否按下键盘Enter键
+	switch (pMsg->wParam) {
+		// 进度控制
+	case VK_RIGHT:
+		mplayer->setProgress( (mplayer->getCurrent() + 5.0) / (double)mplayer->getDuration() );
+		break;
+	case VK_LEFT:
+		mplayer->setProgress( (mplayer->getCurrent() + 5.0) / (double)mplayer->getDuration() );
+		break;
+		// 声音控制
+	case VK_UP:
+		storeVolume = mplayer->getVolumn() + 5;
+		if (storeVolume > 150) storeVolume = 150;
+		mplayer->setVolumn(storeVolume);
+		m_volume.SetPos(storeVolume);
+		volume.Format(_T("%d"), storeVolume);
+		SetDlgItemText(IDC_STATIC_VOLUME, volume);
+		break;
+	case VK_DOWN:
+		storeVolume = mplayer->getVolumn() - 5;
+		if (storeVolume < 0) storeVolume = 0;
+		mplayer->setVolumn(storeVolume);
+		m_volume.SetPos(storeVolume);
+		volume.Format(_T("%d"), storeVolume);
+		SetDlgItemText(IDC_STATIC_VOLUME, volume);
+		break;
+		// 开始与暂停
+	case VK_SPACE:
+		OnBnClickedPause();
+		break;
+		// 全屏时候恢复不全屏
+	case VK_SHIFT:
+		if (isFullSceen) {
+			m_pScreenParant->ShowWindow(SW_SHOW);
+			m_pScreen->SetParent(m_pScreenParant);
+			m_pScreen->SetWindowPlacement(&m_saveLocation);//还原
+
+			isFullSceen = false;
+		}
+		break;
+	}
+
+	return CDialog::PreTranslateMessage(pMsg);
+}
+
+
+void CMFC_video_monitorDlg::OnBnClickedFullScreen()
+{
+	if (mplayer->getPlayerState() == libvlc_NothingSpecial) {
+		return;
+	}
+	if (isFullSceen)//恢复
+	{
+		m_pScreenParant->ShowWindow(SW_SHOW);
+		m_pScreen->SetParent(m_pScreenParant);
+		m_pScreen->SetWindowPlacement(&m_saveLocation);//还原
+
+		isFullSceen = false;
+	}
+	else//全屏
+	{
+		//得到屏幕大小
+		int cx = ::GetSystemMetrics(SM_CXSCREEN);
+		int cy = ::GetSystemMetrics(SM_CYSCREEN);
+
+		// 获得定位
+		m_pScreen->GetWindowPlacement(&m_saveLocation);
+
+		m_pScreenParant = m_pScreen->SetParent(NULL);
+		m_pScreenParant->ShowWindow(SW_HIDE);						//原父窗口 隐藏
+		m_pScreen->MoveWindow(0, 0, cx, cy);						//移动窗口
+		isFullSceen = true;
+	}
+}
+
+
+void CMFC_video_monitorDlg::OnBnClickedStoreVideoFrag()
+{
+
+}
