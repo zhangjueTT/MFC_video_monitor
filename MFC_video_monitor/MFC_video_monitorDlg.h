@@ -4,6 +4,8 @@
 
 #pragma once
 #include "afxcmn.h"
+#include <map>
+#include "afxwin.h"
 
 
 // CMFC_video_monitorDlg ¶Ô»°¿ò
@@ -41,7 +43,9 @@ private:
 	HWND screen_hwnd = NULL;
 	CSliderCtrl m_progress;
 	bool isShowDuration;
+	CListBox videoList;
 
+	std::map<CString, CStringA> fileMap;
 
 public:
 	afx_msg void OnBnClickedPause();
@@ -52,5 +56,6 @@ public:
 	afx_msg void resetTime();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
-
+	afx_msg void scanCurrentDir(CString strDir);
+	afx_msg void OnLbnDblclkVideoList();
 };

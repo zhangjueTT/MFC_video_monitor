@@ -59,6 +59,7 @@ void CMFC_video_monitorDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 	DDX_Control(pDX, IDC_PROGRESS_BAR, m_progress);
+	DDX_Control(pDX, IDC_VIDEO_LIST, videoList);
 }
 
 BEGIN_MESSAGE_MAP(CMFC_video_monitorDlg, CDialogEx)
@@ -72,6 +73,7 @@ BEGIN_MESSAGE_MAP(CMFC_video_monitorDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_FAST_REW, &CMFC_video_monitorDlg::OnBnClickedFastRew)
 	ON_WM_TIMER()
 	ON_WM_HSCROLL()
+	ON_LBN_DBLCLK(IDC_VIDEO_LIST, &CMFC_video_monitorDlg::OnLbnDblclkVideoList)
 END_MESSAGE_MAP()
 
 
@@ -163,7 +165,7 @@ HCURSOR CMFC_video_monitorDlg::OnQueryDragIcon()
 
 void CMFC_video_monitorDlg::OnBnClickedBegin()
 {
-	if (mplayer->getPlayerState() == libvlc_Playing) {
+	if (mplayer->getPlayerState() != libvlc_NothingSpecial) {
 		OnBnClickedClose();
 	}
 	CString filter;
@@ -173,16 +175,25 @@ void CMFC_video_monitorDlg::OnBnClickedBegin()
 	{
 		return ;
 	}
-
 	CStringA videoUrl;
 	videoUrl = dlg.GetPathName();
+
+	fileMap.clear();
+	// 遍历当前文件夹
+	scanCurrentDir((CString)videoUrl);
+
+	int i = 0;
+	for (auto item : fileMap) {
+		videoList.InsertString( i++,item.first);
+	}
 
 	mplayer->setUrl(videoUrl);
 
 	mplayer->init(screen_hwnd);
 	mplayer->begin();
-	isShowDuration = true;
+
 	// 设置定时器
+	isShowDuration = true;
 	SetTimer(1, 1000, NULL);
 }
 
@@ -281,6 +292,7 @@ void CMFC_video_monitorDlg::OnTimer(UINT_PTR nIDEvent)
 }
 
 
+
 void CMFC_video_monitorDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
 	if (mplayer->getPlayerState() != libvlc_Playing) return;
@@ -310,4 +322,61 @@ void CMFC_video_monitorDlg::resetRate() {
 	strRate.Format(_T("%1.2f"), mplayer->getRate());
 	strRate = (CString)"播放速度:" + strRate + (CString)"倍";
 	SetDlgItemText(IDC_RATE, strRate);
+}
+
+
+// 遍历当前文件夹
+void CMFC_video_monitorDlg::scanCurrentDir(CString filter)
+{
+	int n = filter.ReverseFind('\\');
+	if (n >= 0)
+		filter = filter.Left(n + 1);
+
+	fileMap.clear();	
+	CString suffix[8] = { (CString)"*.avi", (CString)"*mp4", (CString)"*mkv", (CString)"*flv", (CString)"*rmvb", (CString)"*wmv", (CString)"mpeg", (CString)"*mov" };
+
+	CFileFind finder;
+	CString path, name, filterPath;
+	for (int i = 0; i < 8; i++) 
+	{
+		filterPath = filter + suffix[i];
+		BOOL bWorking = finder.FindFile(filterPath);
+		while (bWorking)
+		{
+			bWorking = finder.FindNextFile();
+			path = finder.GetFilePath();
+			name = finder.GetFileName();
+			fileMap[name] = (CStringA)path;
+		}
+	}
+
+	finder.Close();
+}
+
+// list双击事件
+void CMFC_video_monitorDlg::OnLbnDblclkVideoList()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	int nIndex;
+	CString name;
+	nIndex = videoList.GetCurSel();
+	if (nIndex < 0) return ;
+
+	// 在这里操作
+	videoList.GetText(nIndex, name);
+	if (!fileMap[name]) return;
+	
+	// 不为空则 播放新的视频
+	if (mplayer->getPlayerState() != libvlc_NothingSpecial) {
+		OnBnClickedClose();
+	}
+
+	mplayer->setUrl(fileMap[name]);
+	mplayer->init(screen_hwnd);
+	mplayer->begin();
+
+	// 设置定时器
+	isShowDuration = true;
+	SetTimer(1, 1000, NULL);
+
 }
